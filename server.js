@@ -120,12 +120,35 @@ io.on('connection', function(socket){
 		}, 250);
 
   });
+	//setTimeout(function(){
+		var userbase;
+		socket.on('getallusers', (data) => {
+			con.query("SELECT * FROM challengeapp.challenges", function(err, result, fields){
+				if (err) {
+					console.log("Er i error område");
+					throw err
+				}
+				if (result.length == 0) {
+					console.log("er i ikke korrekt område");
+					io.emit('loginconfirmed', {message: 'Ga ingen resultat'});
+				}else {
+					for (var i = 0; i < result.length; i++) {
+						userbase = userbase + result[i].username+"//"+result[i].navn+"//"+result[i].pushup + "/-/";
+					}
+					console.log("er i ok området");
+					console.log(userbase);
+					io.emit('alluserinfo', {message: userbase});
+				}
+			});
+
+		//}, 1000);
+	});
   socket.on('newuser', (message) => {
 		console.log(message);
 		var data = message.split("//");
 		con.query("INSERT INTO challengeapp.users (navn, email, username, passord) VALUES('"+data[0]+"', '"+data[1]+"', '"+data[2]+"', '"+data[3]+"')");
 
-		con.query("INSERT INTO challengeapp.challenges (username, pushup) VALUES('"+data[2]+"','"+0+"')");
+		con.query("INSERT INTO challengeapp.challenges (username, navn, pushup) VALUES('"+data[2]+"','"+data[0]+"','"+0+"')");
 		//io.emit('message', message)
 	});
 
