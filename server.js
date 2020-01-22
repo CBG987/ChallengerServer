@@ -82,7 +82,8 @@ io.on('connection', function(socket){
 	socket.on('getuserinfo', (data) => {
     console.log(data);
 		var brukernavn; var object;
-		var id; var navn; var epost; var pushups;
+		var id; var navn; var epost;
+		var total; var today; var overtotal;
 		con.query("SELECT * FROM challengeapp.users WHERE username ='"+data.username+"'", function(err, result, fields){
 			if (err) {
 				console.log("Er i error område");
@@ -98,7 +99,7 @@ io.on('connection', function(socket){
 			}
 		});
 		setTimeout(function(){
-			con.query("SELECT * FROM challengeapp.challenges WHERE username ='"+brukernavn+"'", function(err, result, fields){
+			con.query("SELECT * FROM challengeapp.challenges WHERE username ='"+data.username+"'", function(err, result, fields){
 				if (err) {
 					console.log("Er i error område");
 					throw err
@@ -108,11 +109,14 @@ io.on('connection', function(socket){
 					io.emit('loginconfirmed', {message: 'Ga ingen resultat'});
 				}else {
 					console.log("er i ok området");
-					pushups = result[0].pushup;
+					total = result[0].total;
+					today = result[0].today;
+					overtotal = result[0].overtotal;
 				}
 			});
 			setTimeout(function(){
-				object = {id: id, navn: navn, epost: epost, brukernavn: brukernavn, pushups: pushups};
+				//object = {id: id, navn: navn, epost: epost, brukernavn: brukernavn, pushups: pushups};
+				object = {id: id, navn: navn, epost: epost, brukernavn: brukernavn, total: total, today: today, overtotal: overtotal};
 				console.log(object);
 				io.emit('userinfo', {message: object});
 				console.log("Sending ...");
@@ -121,34 +125,65 @@ io.on('connection', function(socket){
 
   });
 	//setTimeout(function(){
-		var userbase;
-		socket.on('getallusers', (data) => {
+	var userbase;
+	socket.on('getallusers', (data) => {
+		con.query("SELECT * FROM challengeapp.challenges", function(err, result, fields){
+			if (err) {
+				throw err
+			}else {
+				for (var i = 0; i < result.length; i++) {
+					userbase = userbase + result[i].username+"//"+result[i].navn+"//"+result[i].total+"//"+result[i].today+"//"+result[i].overtotal + "/-/";
+				}
+				console.log("er i ok området");
+				console.log(userbase);
+				io.emit('alluserinfo', {message: userbase});
+				userbase = "";
+			}
+		});
+	});
+	socket.on('addcounter', (message) => {
+		var counter;
+		if(message.counter >= 100){
+			counter = 100;
+		}else{
+			con.query("UPDATE challengeapp.challenges SET total = total+"+message.counter+" WHERE username = '"+message.username+"'");
+		}
+		setTimeout(function(){
 			con.query("SELECT * FROM challengeapp.challenges", function(err, result, fields){
 				if (err) {
-					console.log("Er i error område");
 					throw err
-				}
-				if (result.length == 0) {
-					console.log("er i ikke korrekt område");
-					io.emit('loginconfirmed', {message: 'Ga ingen resultat'});
 				}else {
 					for (var i = 0; i < result.length; i++) {
-						userbase = userbase + result[i].username+"//"+result[i].navn+"//"+result[i].pushup + "/-/";
+						userbase = userbase + result[i].username+"//"+result[i].navn+"//"+result[i].total+"//"+result[i].today+"//"+result[i].overtotal + "/-/";
 					}
 					console.log("er i ok området");
 					console.log(userbase);
 					io.emit('alluserinfo', {message: userbase});
+					userbase = "";
 				}
 			});
+			con.query("SELECT * FROM challengeapp.challenges WHERE username ='"+message.username+"'", function(err, result, fields){
+				if (err) {
+					throw err
+				}else {
+					console.log("er i ok området");
+					total = result[0].total;
+					today = result[0].today;
+					overtotal = result[0].overtotal;
+				}
+			});
+			setTimeout(function() {
 
-		//}, 1000);
+
+			}, 250);
+		}, 250);
 	});
   socket.on('newuser', (message) => {
 		console.log(message);
 		var data = message.split("//");
 		con.query("INSERT INTO challengeapp.users (navn, email, username, passord) VALUES('"+data[0]+"', '"+data[1]+"', '"+data[2]+"', '"+data[3]+"')");
 
-		con.query("INSERT INTO challengeapp.challenges (username, navn, pushup) VALUES('"+data[2]+"','"+data[0]+"','"+0+"')");
+		con.query("INSERT INTO challengeapp.challenges (username, navn, total, today, overtotal) VALUES('"+data[2]+"','"+data[0]+"','"+0+"','"+0+"','"+0+"')");
 		//io.emit('message', message)
 	});
 
